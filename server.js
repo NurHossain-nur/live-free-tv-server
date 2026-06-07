@@ -13,6 +13,7 @@ const { initStreamAutomation, autoUpdateMatchStreams } = require('./services/str
 
 // Import Routes
 const streamRoutes = require('./routes/streamRoutes');
+const proxyRoutes = require('./routes/proxyRoutes');
 
 console.log("🔍 ACTUAL MONGO URI BEING USED:", process.env.MONGO_URI);
 
@@ -45,6 +46,8 @@ app.use('/api/', apiLimiter);
 
 // Mount Routes
 app.use('/api/v1/streams', streamRoutes);
+
+app.use('/api/v1/proxy', proxyRoutes);
 
 // Socket.io Event Handling
 io.on('connection', (socket) => {
