@@ -1,7 +1,8 @@
 // Replace with your actual frontend domains when deploying
 const allowedOrigins = [
   'http://localhost:5173', // Vite default local port
-  'https://your-production-domain.com'
+  'https://live-free-tv.vercel.app',
+  'https://www.live-free-tv.vercel.app'
 ];
 
 const corsOptions = {
