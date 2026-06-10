@@ -4,8 +4,8 @@ const axios = require('axios');
 (async () => {
   console.log("🔍 Inspecting Live API Channels...");
   try {
-    // const response = await axios.get('https://iptv-org.github.io/api/streams.json');
-    const response = await axios.get('https://sanatvwork.yoursanaullah.workers.dev/');
+    const response = await axios.get('https://iptv-org.github.io/api/streams.json');
+    // const response = await axios.get('https://sanatvwork.yoursanaullah.workers.dev/');
     const streams = response.data;
     
     // Cleaned Filter: Added a check to make sure s.channel is not null
