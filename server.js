@@ -40,9 +40,62 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: "healthy", message: "Live TV Server Engine Active" });
 });
 
+
+// 1. Tracks individual users and their timestamps
+const channelViewers = {};
+
+// 2. 🔥 NEW: Stores the pre-calculated total (Your Internal Cache)
+const cachedCounts = {}; 
+
+// 3. The Pulse Route (Remains the same)
+app.post('/api/v1/streams/livecount/:channelId/pulse', (req, res) => {
+  const { channelId } = req.params;
+  const { userId } = req.body;
+  if (!userId) return res.status(400).end();
+
+  if (!channelViewers[channelId]) channelViewers[channelId] = {};
+  channelViewers[channelId][userId] = Date.now();
+  
+  res.status(200).json({ success: true });
+});
+
+// 4. The GET Route (Now incredibly fast)
+app.get('/api/v1/streams/livecount/:channelId', (req, res) => {
+  const channelId = req.params.channelId;
+  
+  // 🔥 Instantly return the pre-calculated number. ZERO math required.
+  const currentCount = cachedCounts[channelId] || 1;
+  res.status(200).json({ viewers: currentCount });
+});
+
+// 5. Background Cleanup & Math Loop
+// Runs exactly once every 15 seconds
+setInterval(() => {
+  const now = Date.now();
+  const TIMEOUT_MS = 60000; 
+  
+  for (const channelId in channelViewers) {
+    let activeCount = 0;
+    
+    for (const user in channelViewers[channelId]) {
+      // If the user hasn't pulsed in 60 seconds, delete them
+      if (now - channelViewers[channelId][user] > TIMEOUT_MS) {
+        delete channelViewers[channelId][user];
+      } else {
+        // If they are alive, count them
+        activeCount++; 
+      }
+    }
+    
+    // 🔥 Save the final number to our internal cache
+    cachedCounts[channelId] = activeCount;
+  }
+}, 15000);
+
 // Mount Routes
 app.use('/api/v1/streams', streamRoutes);
 app.use('/api/v1/proxy', proxyRoutes);
+
 
 // Socket.io Event Handling
 io.on('connection', (socket) => {
