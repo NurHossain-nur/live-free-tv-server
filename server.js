@@ -27,6 +27,8 @@ const io = new Server(server, {
     origin: corsOptions.allowedOrigins,
     methods: ['GET', 'POST'],
   },
+  pingTimeout: 10000,  // 🔥 NEW: Drop them after 10 seconds of no response
+  pingInterval: 15000  // 🔥 NEW: Ping them every 15 seconds to check if alive
 });
 
 // Global Middleware
@@ -73,6 +75,14 @@ io.on('connection', (socket) => {
     
     // Tell everyone in this room what the new total count is
     io.to(roomName).emit('viewer_update', roomViewers[roomName]);
+  });
+
+  // --- 1.5 HANDLE LEAVING CHANNELS MANUALLY ---
+  socket.on('leave_channel', (channelId) => {
+    const roomName = `channel_${channelId}`;
+    socket.leave(roomName);
+    decreaseRoomCount(roomName);
+    if (currentRoom === roomName) currentRoom = null;
   });
 
   // --- 2. HANDLE MATCH ROOM JOINING (Your existing logic upgraded) ---
