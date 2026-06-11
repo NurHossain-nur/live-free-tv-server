@@ -27,8 +27,6 @@ const io = new Server(server, {
     origin: corsOptions.allowedOrigins,
     methods: ['GET', 'POST'],
   },
-  pingTimeout: 10000,  // 🔥 NEW: Drop them after 10 seconds of no response
-  pingInterval: 15000  // 🔥 NEW: Ping them every 15 seconds to check if alive
 });
 
 // Global Middleware
@@ -46,85 +44,20 @@ app.get('/', (req, res) => {
 app.use('/api/v1/streams', streamRoutes);
 app.use('/api/v1/proxy', proxyRoutes);
 
-// Object to keep track of active user counts per channel/match
-// Format: { '1': 5, 'match_12345': 12 }
-const roomViewers = {};
-
 // Socket.io Event Handling
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
   
-  // Track what room this specific client is currently looking at
-  let currentRoom = null;
-
-  // --- 1. HANDLE LIVE TV CHANNEL JOINING ---
-  socket.on('join_channel', (channelId) => {
-    const roomName = `channel_${channelId}`;
-    
-    // Safety check: if they were in a room before, leave it first
-    if (currentRoom && currentRoom !== roomName) {
-      socket.leave(currentRoom);
-      decreaseRoomCount(currentRoom);
-    }
-
-    currentRoom = roomName;
-    socket.join(roomName);
-    
-    // Increase count for this channel
-    roomViewers[roomName] = (roomViewers[roomName] || 0) + 1;
-    
-    // Tell everyone in this room what the new total count is
-    io.to(roomName).emit('viewer_update', roomViewers[roomName]);
-  });
-
-  // --- 1.5 HANDLE LEAVING CHANNELS MANUALLY ---
-  socket.on('leave_channel', (channelId) => {
-    const roomName = `channel_${channelId}`;
-    socket.leave(roomName);
-    decreaseRoomCount(roomName);
-    if (currentRoom === roomName) currentRoom = null;
-  });
-
-  // --- 2. HANDLE MATCH ROOM JOINING (Your existing logic upgraded) ---
   socket.on('joinMatchRoom', (matchId) => {
-    const roomName = `match_${matchId}`;
-    
-    if (currentRoom && currentRoom !== roomName) {
-      socket.leave(currentRoom);
-      decreaseRoomCount(currentRoom);
-    }
-
-    currentRoom = roomName;
-    socket.join(roomName);
-
-    roomViewers[roomName] = (roomViewers[roomName] || 0) + 1;
-    io.to(roomName).emit('viewer_update', roomViewers[roomName]);
+    socket.join(`match_${matchId}`);
   });
 
   socket.on('leaveMatchRoom', (matchId) => {
-    const roomName = `match_${matchId}`;
-    socket.leave(roomName);
-    decreaseRoomCount(roomName);
-    if (currentRoom === roomName) currentRoom = null;
+    socket.leave(`match_${matchId}`);
   });
 
-  // --- 3. HELPER CLEANUP FUNCTION ---
-  const decreaseRoomCount = (roomName) => {
-    if (roomViewers[roomName]) {
-      roomViewers[roomName]--;
-      if (roomViewers[roomName] <= 0) roomViewers[roomName] = 0;
-      
-      // Broadcast the lowered count to the remaining viewers
-      io.to(roomName).emit('viewer_update', roomViewers[roomName]);
-    }
-  };
-
-  // --- 4. DISCONNECT CLEANUP (When they close the tab) ---
   socket.on('disconnect', () => {
     console.log(`🔌 Client disconnected: ${socket.id}`);
-    if (currentRoom) {
-      decreaseRoomCount(currentRoom);
-    }
   });
 });
 
